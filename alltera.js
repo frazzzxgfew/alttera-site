@@ -1,250 +1,163 @@
-// Функция для обработки буллет-списков на страницах
-function styleBulletPoints() {
-  // Находим все элементы, которые могут содержать преимущества
-  const selectors = [
-    '.product-description',
-    '.product-details',
-    '.description',
-    '[class*="desc"]',
-    '[class*="advantage"]',
-    '[class*="feature"]',
-    'p:has(span), p:has(strong), p:has(b)'
-  ];
-  
-  let contentElements = [];
-  
-  // Собираем все возможные элементы с контентом
-  selectors.forEach(selector => {
-    const elements = document.querySelectorAll(selector);
-    elements.forEach(el => {
-      if (el.textContent.trim() && !contentElements.includes(el)) {
-        contentElements.push(el);
+(() => {
+  /* GLOBAL */
+  const api = (window.__ALLTERA__ = window.__ALLTERA__ || {});
+  api.pillsVersion = "cover-pills-v5";
+
+  const COVER_DESC_SELECTOR = '[id^="tile-cover-"] .ins-tile__description';
+
+  function ensureStyles() {
+    if (document.getElementById("alltera-cover-pills-style")) return;
+
+    const css = `
+      /* убираем большую "плашку" на description, чтобы остались отдельные блоки */
+      .alltera-cover-desc {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
       }
-    });
-  });
-  
-  // Функция для проверки, является ли текст пунктом списка
-  function isBulletPoint(text) {
-    const bulletIndicators = [
-      '•', '▪', '▫', '○', '●', '■', '□', '–', '—', '-',
-      '✓', '✔', '→', '⇒', '▶'
-    ];
-    
-    const trimmedText = text.trim();
-    
-    // Проверяем начинается ли строка с буллет-символа
-    if (bulletIndicators.some(bullet => trimmedText.startsWith(bullet))) {
-      return true;
-    }
-    
-    // Проверяем шаблоны типа "1.", "2.", "a)", "b)"
-    const bulletPatterns = [
-      /^\d+\./,           // "1.", "2."
-      /^[a-zA-Z]\)/,      // "a)", "b)"
-      /^\[.*?\]/,         // "[текст]"
-      /^<strong>.*?<\/strong>/i, // Жирный текст в начале
-      /^<b>.*?<\/b>/i     // Тег <b> в начале
-    ];
-    
-    return bulletPatterns.some(pattern => pattern.test(trimmedText));
-  }
-  
-  // Обрабатываем каждый элемент
-  contentElements.forEach(element => {
-    const html = element.innerHTML;
-    
-    // Разбиваем HTML на строки
-    const lines = html.split(/<br\s*\/?>/i);
-    
-    if (lines.length <= 1) {
-      // Если нет <br>, пробуем разбить по тегам параграфов
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = html;
-      const paragraphs = Array.from(tempDiv.children);
-      
-      if (paragraphs.length <= 1) {
-        // Если нет явного разделения, ищем по содержимому
-        const text = element.textContent;
-        const possibleBullets = text.split(/\n|\r/).filter(line => line.trim());
-        
-        if (possibleBullets.length > 1 && possibleBullets.some(isBulletPoint)) {
-          // Если найден текст с несколькими пунктами
-          let newHTML = '';
-          possibleBullets.forEach(line => {
-            const trimmedLine = line.trim();
-            if (trimmedLine && isBulletPoint(trimmedLine)) {
-              newHTML += `<div class="bullet-block">${trimmedLine}</div>`;
-            } else {
-              newHTML += `<div>${trimmedLine}</div>`;
-            }
-          });
-          element.innerHTML = newHTML;
-        }
-      } else {
-        // Если есть дочерние элементы (теги)
-        let newHTML = '';
-        paragraphs.forEach(child => {
-          const text = child.textContent.trim();
-          if (text && isBulletPoint(text)) {
-            newHTML += `<div class="bullet-block">${child.innerHTML}</div>`;
-          } else {
-            newHTML += child.outerHTML;
-          }
-        });
-        element.innerHTML = newHTML;
+
+      .alltera-cover-intro {
+        color: #111;
+        opacity: .85;
+        line-height: 1.35;
+        margin: 0 0 14px 0;
+        font-size: 16px;
+        max-width: 560px;
       }
-    } else {
-      // Если есть <br> теги для разделения
-      let newHTML = '';
-      lines.forEach(line => {
-        const trimmedLine = line.trim();
-        if (trimmedLine && isBulletPoint(trimmedLine)) {
-          newHTML += `<div class="bullet-block">${trimmedLine}</div>`;
-        } else {
-          newHTML += trimmedLine + '<br>';
-        }
-      });
-      element.innerHTML = newHTML;
-    }
-  });
-  
-  // Добавляем CSS стили для блоков
-  if (!document.querySelector('#bullet-styles')) {
-    const style = document.createElement('style');
-    style.id = 'bullet-styles';
-    style.textContent = `
-      .bullet-block {
-        position: relative;
-        padding: 12px 15px 12px 40px;
-        margin: 8px 0;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      }
-      
-      .bullet-block:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        background: linear-gradient(135deg, #fff 0%, #f1f3f5 100%);
-      }
-      
-      .bullet-block::before {
-        content: '✓';
-        position: absolute;
-        left: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 24px;
-        height: 24px;
-        background: #4dabf7;
-        color: white;
-        border-radius: 50%;
+
+      .alltera-pills {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 14px;
+        flex-direction: column;
+        gap: 14px;
+        max-width: 560px;
       }
-      
-      .bullet-block strong,
-      .bullet-block b {
-        color: #1c7ed6;
-        font-weight: 600;
+
+      .alltera-pill {
+        position: relative;
+        border-radius: 999px;
+        padding: 16px 22px 16px 54px;
+        color: #fff;
+        background: rgba(0,0,0,.60);
+        box-shadow: 0 10px 25px rgba(0,0,0,.22);
+        line-height: 1.35;
+        font-size: 16px;
       }
-      
-      /* Адаптивность */
-      @media (max-width: 768px) {
-        .bullet-block {
-          padding: 10px 12px 10px 35px;
-          margin: 6px 0;
-        }
-        
-        .bullet-block::before {
-          left: 12px;
-          width: 20px;
-          height: 20px;
-          font-size: 12px;
-        }
+
+      /* точка снаружи слева (как на "Почему мы?") */
+      .alltera-pill::before {
+        content: "";
+        position: absolute;
+        left: -18px;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.75);
+        transform: translateY(-50%);
+      }
+
+      /* точка внутри */
+      .alltera-pill::after {
+        content: "";
+        position: absolute;
+        left: 22px;
+        top: 50%;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.55);
+        transform: translateY(-50%);
       }
     `;
+
+    const style = document.createElement("style");
+    style.id = "alltera-cover-pills-style";
+    style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
   }
-}
 
-// Запускаем функцию при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
-  // Небольшая задержка для полной загрузки контента
-  setTimeout(styleBulletPoints, 500);
-  
-  // Также запускаем при изменениях в DOM (на случай динамического контента)
-  const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-      if (mutation.addedNodes.length) {
-        setTimeout(styleBulletPoints, 300);
-      }
+  function splitCoverText(raw) {
+    const text = String(raw || "").replace(/\r/g, "").trim();
+    if (!text) return null;
+
+    // если есть буллеты — режем по ним
+    if (text.includes("•") || text.includes("·")) {
+      const parts = text
+        .split(/[•·]/g)
+        .map(s => s.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+
+      if (parts.length <= 1) return null;
+      return { intro: parts[0], items: parts.slice(1) };
+    }
+
+    // fallback: если буллетов нет, но есть переносы
+    const lines = text
+      .split(/\n+/g)
+      .map(s => s.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    if (lines.length <= 1) return null;
+    return { intro: lines[0], items: lines.slice(1) };
+  }
+
+  function buildCoverPills(desc) {
+    if (!desc) return;
+    if (desc.dataset.allteraPills === api.pillsVersion) return;
+
+    const parsed = splitCoverText(desc.innerText);
+    if (!parsed || !parsed.items.length) return;
+
+    ensureStyles();
+
+    // чистим и собираем DOM заново
+    desc.classList.add("alltera-cover-desc");
+    desc.textContent = "";
+
+    if (parsed.intro) {
+      const introEl = document.createElement("div");
+      introEl.className = "alltera-cover-intro";
+      introEl.textContent = parsed.intro;
+      desc.appendChild(introEl);
+    }
+
+    const list = document.createElement("div");
+    list.className = "alltera-pills";
+
+    parsed.items.forEach(t => {
+      const pill = document.createElement("div");
+      pill.className = "alltera-pill";
+      pill.textContent = t;
+      list.appendChild(pill);
     });
-  });
-  
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-});
 
-// Альтернативная версия для конкретных страниц (3 и 4)
-function styleProductPages() {
-  // Проверяем, находимся ли мы на странице с товаром
-  const currentUrl = window.location.pathname;
-  const productKeywords = ['fen', 'фен', 'massage', 'пистолет', 'pistol', 'gun'];
-  
-  const isProductPage = productKeywords.some(keyword => 
-    currentUrl.toLowerCase().includes(keyword) || 
-    document.title.toLowerCase().includes(keyword)
-  );
-  
-  if (isProductPage) {
-    console.log('Обработка страницы товара:', document.title);
-    styleBulletPoints();
-    
-    // Дополнительная обработка для специфических элементов магазина
-    const shopSpecificSelectors = [
-      '.product-single__description',
-      '.product__description',
-      '.product-content',
-      '.product-body'
-    ];
-    
-    shopSpecificSelectors.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(element => {
-        // Ищем списки внутри этих элементов
-        const lists = element.querySelectorAll('ul, ol');
-        lists.forEach(list => {
-          const items = list.querySelectorAll('li');
-          items.forEach(item => {
-            const bulletBlock = document.createElement('div');
-            bulletBlock.className = 'bullet-block';
-            bulletBlock.innerHTML = item.innerHTML;
-            item.parentNode.replaceChild(bulletBlock, item);
-          });
-          // Заменяем список на div
-          const listContainer = document.createElement('div');
-          listContainer.className = 'bullet-container';
-          while (list.firstChild) {
-            listContainer.appendChild(list.firstChild);
-          }
-          list.parentNode.replaceChild(listContainer, list);
-        });
-      });
+    desc.appendChild(list);
+    desc.dataset.allteraPills = api.pillsVersion;
+  }
+
+  function run() {
+    document.querySelectorAll(COVER_DESC_SELECTOR).forEach(buildCoverPills);
+  }
+
+  api.runCoverPills = run;
+
+  // безопасный запуск + отложенная подгрузка Ecwid
+  let scheduled = false;
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      try { run(); } catch (e) { console.error("[ALLTERA cover pills] error:", e); }
     });
   }
-}
 
-// Запускаем обе функции
-document.addEventListener('DOMContentLoaded', function() {
-  styleBulletPoints();
-  styleProductPages();
-});
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", schedule);
+  } else {
+    schedule();
+  }
+
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+})();
