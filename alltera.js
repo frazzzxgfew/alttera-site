@@ -1,106 +1,92 @@
 (() => {
-  const VERSION = '2025-12-25_split_v3';
-
+  const VERSION = "9";
   window.ALLTERA = window.ALLTERA || {};
   window.ALLTERA.version = VERSION;
 
-  function injectStyles() {
-    if (document.getElementById('alltera-pill-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'alltera-pill-styles';
-    style.textContent = `
-      .alltera-pill-list{display:flex;flex-direction:column;gap:12px}
-      .alltera-pill{
-        background:rgba(0,0,0,.65);
-        color:#fff;
-        border-radius:999px;
-        padding:14px 18px;
-        line-height:1.35;
-        box-shadow:0 10px 24px rgba(0,0,0,.18);
-        max-width:520px;
-      }
-      @media(max-width:600px){.alltera-pill{max-width:100%}}
-    `;
-    document.head.appendChild(style);
-  }
+  const TARGET_TILE_IDS = ["tile-cover-KWEVvb", "tile-cover-BXq5Sx", "tile-cover-ECtfsG"];
 
-  function splitTextToItems(raw) {
-    if (!raw) return [];
-    const t = raw.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!/[•·]/.test(t)) return [];
+  function normalizeLines(raw) {
+    const text = (raw || "")
+      .replace(/\r/g, "")
+      .replace(/\u00a0/g, " ")
+      .trim();
 
-    // режем по буллетам
-    const parts = t
-      .split(/[•·]/g)
-      .map(s => s.trim())
+    // 1) сначала пробуем по строкам
+    let lines = text
+      .split(/\n+/)
+      .map(l => l.replace(/^[\s•\u2022·\-–—]+/, "").trim())
       .filter(Boolean);
 
-    return parts.length >= 2 ? parts : [];
+    // 2) если всё слиплось в одну строку, режем по маркерам "•" / "·"
+    if (lines.length <= 1 && /[•\u2022·]/.test(text)) {
+      lines = text
+        .split(/[•\u2022·]/g)
+        .map(l => l.trim())
+        .filter(Boolean);
+    }
+
+    return lines;
   }
 
-  function splitOneTile(tile) {
-    const desc = tile.querySelector('.ins-tile__description');
-    if (!desc) return false;
-    if (desc.dataset.allteraSplit === '1') return false;
+  function splitDescriptionToPills(tileEl) {
+    const desc = tileEl.querySelector(".ins-tile__description");
+    if (!desc) return;
 
-    const raw = (desc.innerText || '').trim();
-    const items = splitTextToItems(raw);
-    if (!items.length) return false;
+    // если уже делали — не трогаем (но если Ecwid перерисовал DOM, атрибут исчезнет и мы сделаем заново)
+    if (desc.dataset.allteraPills === "1") return;
 
-    // Снимаем "пузырь" (иногда он на desc, иногда на первом <p>)
-    const reset = (el) => {
-      if (!el) return;
-      el.style.background = 'transparent';
-      el.style.boxShadow = 'none';
-      el.style.padding = '0';
-      el.style.borderRadius = '0';
-      el.style.maxWidth = 'none';
-    };
-    reset(desc);
-    reset(desc.firstElementChild);
+    const raw = desc.innerText || "";
+    const lines = normalizeLines(raw);
 
-    const list = document.createElement('div');
-    list.className = 'alltera-pill-list';
+    // если нечего делить — выходим
+    if (lines.length < 2) return;
 
-    items.forEach(txt => {
-      const pill = document.createElement('div');
-      pill.className = 'alltera-pill';
-      pill.textContent = txt;
-      list.appendChild(pill);
-    });
+    // помечаем, чтобы не зациклиться
+    desc.dataset.allteraPills = "1";
 
-    desc.innerHTML = '';
-    desc.appendChild(list);
+    // очищаем и строим "пилюли"
+    desc.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "alltera-pills";
 
-    desc.dataset.allteraSplit = '1';
-    return true;
+    for (const line of lines) {
+      const pill = document.createElement("div");
+      pill.className = "alltera-pill";
+      pill.textContent = line;
+      wrap.appendChild(pill);
+    }
+
+    desc.appendChild(wrap);
   }
 
   function run() {
-    injectStyles();
-    const tiles = document.querySelectorAll('.ins-tile.ins-tile--cover');
-    let changed = 0;
-    tiles.forEach(t => { if (splitOneTile(t)) changed++; });
-    window.ALLTERA.lastSplitCount = changed;
+    for (const id of TARGET_TILE_IDS) {
+      const tile = document.getElementById(id);
+      if (tile) splitDescriptionToPills(tile);
+    }
   }
 
-  // чтобы можно было руками дернуть
-  window.ALLTERA.splitCovers = run;
+  // запуск + защита от SPA/перерендера
+  const schedule = (() => {
+    let raf = 0;
+    return () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(run);
+    };
+  })();
 
-  // старт + догоняем перерисовки
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', run);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", schedule, { once: true });
   } else {
-    run();
+    schedule();
   }
 
-  let raf = 0;
-  const schedule = () => {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(run);
-  };
-  new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
+  // Ecwid часто перерисовывает секции → наблюдаем за DOM
+  const mo = new MutationObserver(schedule);
+  mo.observe(document.documentElement, { childList: true, subtree: true });
 
-  setTimeout(run, 500);
-  setTimeout(run, 1500);
+  // и контрольный прогон на всякий случай
+  setInterval(run, 1500);
+
+  console.log("[ALLTERA] loaded", VERSION);
 })();
