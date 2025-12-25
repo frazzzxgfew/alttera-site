@@ -1,106 +1,163 @@
 (() => {
-  const VERSION = "cover-pills-2025-12-25-v1";
+  /* GLOBAL */
+  const api = (window.__ALLTERA__ = window.__ALLTERA__ || {});
+  api.pillsVersion = "cover-pills-v5";
 
-  // чтобы в консоли не было undefined
-  window.__ALLTERA__ = window.__ALLTERA__ || {};
-  window.__ALLTERA__.pillsVersion = VERSION;
+  const COVER_DESC_SELECTOR = '[id^="tile-cover-"] .ins-tile__description';
 
-  const STYLE_ID = "alltera-cover-pills-style";
-  if (!document.getElementById(STYLE_ID)) {
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
+  function ensureStyles() {
+    if (document.getElementById("alltera-cover-pills-style")) return;
+
+    const css = `
+      /* убираем большую "плашку" на description, чтобы остались отдельные блоки */
+      .alltera-cover-desc {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+      }
+
+      .alltera-cover-intro {
+        color: #111;
+        opacity: .85;
+        line-height: 1.35;
+        margin: 0 0 14px 0;
+        font-size: 16px;
+        max-width: 560px;
+      }
+
       .alltera-pills {
         display: flex;
         flex-direction: column;
         gap: 14px;
-        margin-top: 6px;
+        max-width: 560px;
       }
 
       .alltera-pill {
         position: relative;
-        padding: 18px 22px 18px 42px;
         border-radius: 999px;
-        background: linear-gradient(90deg, rgba(0,0,0,.78), rgba(0,0,0,.55));
-        box-shadow: 0 12px 26px rgba(0,0,0,.25);
+        padding: 16px 22px 16px 54px;
         color: #fff;
-        font-weight: 500;
+        background: rgba(0,0,0,.60);
+        box-shadow: 0 10px 25px rgba(0,0,0,.22);
         line-height: 1.35;
-        max-width: 560px;
+        font-size: 16px;
       }
 
+      /* точка снаружи слева (как на "Почему мы?") */
       .alltera-pill::before {
-        content: "•";
+        content: "";
         position: absolute;
-        left: 18px;
+        left: -18px;
         top: 50%;
-        transform: translateY(-52%);
-        font-size: 18px;
-        opacity: .9;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.75);
+        transform: translateY(-50%);
       }
 
-      @media (max-width: 720px) {
-        .alltera-pill {
-          border-radius: 26px;
-          padding: 16px 18px 16px 38px;
-          max-width: 100%;
-        }
+      /* точка внутри */
+      .alltera-pill::after {
+        content: "";
+        position: absolute;
+        left: 22px;
+        top: 50%;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.55);
+        transform: translateY(-50%);
       }
     `;
+
+    const style = document.createElement("style");
+    style.id = "alltera-cover-pills-style";
+    style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
   }
 
-  function splitToItems(text) {
-    // делим по "•" и по строкам, убираем пустое
-    return text
-      .replace(/\r/g, "")
-      .split("•")
-      .map(s => s.trim())
-      .filter(Boolean)
-      .flatMap(s => s.split("\n").map(x => x.trim()).filter(Boolean));
+  function splitCoverText(raw) {
+    const text = String(raw || "").replace(/\r/g, "").trim();
+    if (!text) return null;
+
+    // если есть буллеты — режем по ним
+    if (text.includes("•") || text.includes("·")) {
+      const parts = text
+        .split(/[•·]/g)
+        .map(s => s.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+
+      if (parts.length <= 1) return null;
+      return { intro: parts[0], items: parts.slice(1) };
+    }
+
+    // fallback: если буллетов нет, но есть переносы
+    const lines = text
+      .split(/\n+/g)
+      .map(s => s.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    if (lines.length <= 1) return null;
+    return { intro: lines[0], items: lines.slice(1) };
   }
 
-  function enhanceCoverTile(tile) {
-    const desc = tile.querySelector(".ins-tile__description");
+  function buildCoverPills(desc) {
     if (!desc) return;
-    if (desc.dataset.allteraPills === "1") return;
+    if (desc.dataset.allteraPills === api.pillsVersion) return;
 
-    const raw = (desc.innerText || "").trim();
-    if (!raw) return;
+    const parsed = splitCoverText(desc.innerText);
+    if (!parsed || !parsed.items.length) return;
 
-    const items = splitToItems(raw);
+    ensureStyles();
 
-    // если нечего делить — не трогаем
-    if (items.length < 2) return;
+    // чистим и собираем DOM заново
+    desc.classList.add("alltera-cover-desc");
+    desc.textContent = "";
 
-    const pills = document.createElement("div");
-    pills.className = "alltera-pills";
+    if (parsed.intro) {
+      const introEl = document.createElement("div");
+      introEl.className = "alltera-cover-intro";
+      introEl.textContent = parsed.intro;
+      desc.appendChild(introEl);
+    }
 
-    items.forEach(t => {
+    const list = document.createElement("div");
+    list.className = "alltera-pills";
+
+    parsed.items.forEach(t => {
       const pill = document.createElement("div");
       pill.className = "alltera-pill";
       pill.textContent = t;
-      pills.appendChild(pill);
+      list.appendChild(pill);
     });
 
-    // заменяем содержимое описания на наши "пилюли"
-    desc.innerHTML = "";
-    desc.appendChild(pills);
-    desc.dataset.allteraPills = "1";
+    desc.appendChild(list);
+    desc.dataset.allteraPills = api.pillsVersion;
   }
 
-  function scan() {
-    document.querySelectorAll('[id^="tile-cover-"]').forEach(enhanceCoverTile);
+  function run() {
+    document.querySelectorAll(COVER_DESC_SELECTOR).forEach(buildCoverPills);
   }
 
-  // первичный запуск
+  api.runCoverPills = run;
+
+  // безопасный запуск + отложенная подгрузка Ecwid
+  let scheduled = false;
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      try { run(); } catch (e) { console.error("[ALLTERA cover pills] error:", e); }
+    });
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", scan);
+    document.addEventListener("DOMContentLoaded", schedule);
   } else {
-    scan();
+    schedule();
   }
 
-  // на случай если конструктор подгружает/перерисовывает блоки
-  const mo = new MutationObserver(() => scan());
-  mo.observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
 })();
