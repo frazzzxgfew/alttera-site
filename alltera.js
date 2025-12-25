@@ -1,34 +1,35 @@
 (() => {
-  const VERSION = "pills-v1";
+  // всегда создаём глобальный объект (чтобы не было undefined)
+  window.__ALLTERA__ = window.__ALLTERA__ || {};
+  const api = window.__ALLTERA__;
+
+  api.pillsVersion = "pills-v2";
 
   function splitToItems(text) {
     const raw = (text || "").replace(/\r/g, "").trim();
     if (!raw) return [];
 
-    // режем по маркерам • или ·, а также по переносам строк
-    const parts = raw
-      .split(/(?:\s*[•·]\s*|\n+)/g)
+    return raw
+      .split(/\n+|(?:\s*[•·]\s*)/g)     // переносы + маркеры • / ·
       .map(s => s.replace(/\s+/g, " ").trim())
       .filter(Boolean);
-
-    return parts;
   }
 
   function buildPills(descEl) {
     if (!descEl || descEl.dataset.allteraPills === "1") return;
 
     const items = splitToItems(descEl.innerText);
-    if (items.length < 2) return; // если нечего делить — оставляем как есть
+    if (items.length < 2) return;
 
     const wrap = document.createElement("div");
     wrap.className = "alltera-pills";
 
-    items.forEach(t => {
+    for (const t of items) {
       const pill = document.createElement("div");
       pill.className = "alltera-pill";
       pill.textContent = t;
       wrap.appendChild(pill);
-    });
+    }
 
     descEl.textContent = "";
     descEl.classList.add("alltera-pills-wrap");
@@ -37,27 +38,31 @@
   }
 
   function run() {
-    // твой кейс: #tile-cover-XXXX внутри .ins-tile__description
     document
       .querySelectorAll('[id^="tile-cover-"] .ins-tile__description')
       .forEach(buildPills);
   }
 
-  // старт
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", run);
-  } else {
-    run();
+  api.runPills = run;
+
+  function safeRun() {
+    try {
+      run();
+      console.info("[ALLTERA pills]", api.pillsVersion, "pills:", document.querySelectorAll(".alltera-pill").length);
+    } catch (e) {
+      console.error("[ALLTERA pills] error:", e);
+    }
   }
 
-  // если плитки/слайды подгружаются/меняются — ловим изменения
-  let t = null;
-  const mo = new MutationObserver(() => {
-    clearTimeout(t);
-    t = setTimeout(run, 50);
-  });
-  mo.observe(document.body, { childList: true, subtree: true });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", safeRun);
+  } else {
+    safeRun();
+  }
 
-  // чтобы у тебя больше не было "undefined" при проверке:
-  window.__ALLTERA__ = { pillsVersion: VERSION, run };
+  let t = null;
+  new MutationObserver(() => {
+    clearTimeout(t);
+    t = setTimeout(safeRun, 50);
+  }).observe(document.documentElement, { childList: true, subtree: true });
 })();
