@@ -123,20 +123,25 @@
     enqueue(el);
   }
 
-  function splitBullets(el){
-    if(!el||el.dataset.atSplit==="1")return false;
-    var raw=(el.textContent||"").trim();
-    if(!raw)return false;
-    if(raw.charAt(0)!=="•" && raw.charAt(0)!=="\u2022")return false;
-    var parts=raw.split(/[•\u2022]+/).map(function(x){return norm(x)}).filter(Boolean);
-    if(parts.length<=1)return false;
-    var p=el.parentNode,ref=el;
-    for(var i=0;i<parts.length;i++){
-      var n=document.createElement(el.tagName==="LI"?"li":"p");
-      n.textContent=parts[i];
-      p.insertBefore(n,ref);
-      decorateBulletEl(n,parts[i]);
-    }
+function splitBullets(el){
+  if(!el||el.dataset.atSplit==="1")return false;
+  var raw=(el.innerText||el.textContent||"");
+  if(raw.indexOf("•")===-1 && raw.indexOf("\u2022")===-1)return false;
+
+  var parts=raw.split(/[•\u2022]+/).map(function(x){return norm(x)}).filter(Boolean);
+  if(parts.length<2)return false;
+
+  var p=el.parentNode, ref=el;
+  for(var i=0;i<parts.length;i++){
+    var n=document.createElement(el.tagName==="LI"?"li":"p");
+    n.textContent=parts[i];
+    p.insertBefore(n,ref);
+    decorateBulletEl(n,parts[i]); // делает 1 пункт = 1 блок + печать
+  }
+  p.removeChild(ref);
+  el.dataset.atSplit="1";
+  return true;
+}
     p.removeChild(ref);
     el.dataset.atSplit="1";
     return true;
@@ -166,7 +171,7 @@
       enqueue(whyText);
     }
 
-    var items=[].slice.call(r.querySelectorAll("p,li"));
+    var items=[].slice.call(r.querySelectorAll("p,li,[class*='ins-tile__body'],[class*='ins-tile__text']"));
     for(var k=0;k<items.length;k++){
       var el=items[k];
       if(!el||el.dataset.atBullet==="1")continue;
