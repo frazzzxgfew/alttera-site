@@ -1,128 +1,130 @@
 (() => {
-  const TARGET_TILE_IDS = [
-    "tile-cover-KWEVvb", // Стайлеры для волос
-    "tile-cover-BXq5Sx", // Массажные пистолеты
-  ];
+  // защита от двойного запуска
+  if (window.__alltera_pills_inited) return;
+  window.__alltera_pills_inited = true;
 
-  const STYLE_ID = "alltera-pill-style-v3";
+  function injectStyles() {
+    if (document.getElementById('alltera-pill-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'alltera-pill-styles';
+    style.textContent = `
+      /* Когда мы превратили описание в отдельные "пилюли" — убираем старый "овал" */
+      .alltera-split .ins-tile__description{
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        max-width: none !important;
+      }
 
-  function injectCSS() {
-    if (document.getElementById(STYLE_ID)) return;
-
-    const css = `
       .alltera-pill-list{
-        display:flex;
-        flex-direction:column;
-        gap:14px;
-        margin-top: 8px;
-      }
-      .alltera-pill{
-        position:relative;
-        display:block;
-        max-width: 680px;
-        padding: 18px 26px 18px 54px;
-        border-radius: 9999px;
-        background: rgba(40,40,42,0.92);
-        color: #fff;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-        line-height: 1.35;
-        margin: 0;
-        white-space: normal;
-      }
-      .alltera-pill::before{
-        content: "•";
-        position:absolute;
-        left: 26px;
-        top: 50%;
-        transform: translateY(-50%);
-        opacity: .9;
-        font-size: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
       }
 
-      /* чуть аккуратнее на мобилке */
+      .alltera-pill{
+        background: rgba(0,0,0,.65);
+        color: #fff;
+        border-radius: 999px;
+        padding: 14px 18px;
+        line-height: 1.35;
+        box-shadow: 0 10px 24px rgba(0,0,0,.18);
+        max-width: 520px;
+      }
+
+      /* На мобилке пусть "пилюли" занимают ширину колонки */
       @media (max-width: 600px){
-        .alltera-pill{
-          max-width: 100%;
-          border-radius: 24px;
-          padding: 16px 18px 16px 44px;
-        }
-        .alltera-pill::before{ left: 18px; }
+        .alltera-pill{ max-width: 100%; }
       }
     `;
-
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = css;
     document.head.appendChild(style);
   }
 
-  function splitToItems(text) {
-    const t = (text || "")
-      .replace(/\u00A0/g, " ")
-      .replace(/\r/g, "\n")
+  function normalizeToItems(text) {
+    if (!text) return [];
+    let t = text
+      .replace(/\r/g, '')
+      .replace(/\u00A0/g, ' ')
       .trim();
 
-    // основной кейс: буллеты "•" или "·"
-    let parts = t.split(/[•·]\s*/g).map(s => s.trim()).filter(Boolean);
+    // Превращаем любые варианты " • " в перенос строки с маркером
+    // (чтобы работало и когда пункты в одной строке)
+    t = t.replace(/\s*[•·]\s*/g, '\n• ');
+    t = t.replace(/^\n+/, '').trim();
 
-    // запасной: если вдруг буллеты исчезли — режем по переносам
-    if (parts.length < 2) {
-      parts = t.split(/\n+/g).map(s => s.trim()).filter(Boolean);
-    }
+    // Делим на строки, убираем маркеры
+    const lines = t
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => s.replace(/^•\s*/, '').trim())
+      .filter(Boolean);
 
-    return parts;
+    // Если вдруг маркеров не было — не трогаем
+    return lines.length >= 2 ? lines : [];
   }
 
-  function renderPillsForTile(tileId) {
-    const tile = document.getElementById(tileId);
-    if (!tile) return false;
+  function splitCoverDescriptionsToPills() {
+    injectStyles();
 
-    const desc = tile.querySelector(".ins-tile__description");
-    if (!desc) return false;
+    const coverTiles = document.querySelectorAll('.ins-tile.ins-tile--cover');
+    coverTiles.forEach(tile => {
+      // Уже обработано
+      if (tile.classList.contains('alltera-split')) return;
 
-    // не трогаем второй раз
-    if (desc.dataset.allteraPills === "1") return true;
+      const desc = tile.querySelector('.ins-tile__description');
+      if (!desc) return;
 
-    const p = desc.querySelector("p");
-    if (!p) return false;
+      // Если уже много <p> (как на "Почему мы?") — обычно трогать не надо
+      // (там и так всё раздельно)
+      const ps = desc.querySelectorAll('p');
+      if (ps.length >= 2) return;
 
-    const items = splitToItems(p.innerText || p.textContent || "");
-    if (items.length < 2) return false;
+      // Берём текст
+      const text = desc.innerText || '';
+      if (!text.includes('•') && !text.includes('·')) return;
 
-    const list = document.createElement("div");
-    list.className = "alltera-pill-list";
+      const items = normalizeToItems(text);
+      if (!items.length) return;
 
-    for (const item of items) {
-      const pill = document.createElement("p");
-      pill.className = "alltera-pill";
-      pill.textContent = item;
-      list.appendChild(pill);
-    }
+      // Строим пилюли
+      const list = document.createElement('div');
+      list.className = 'alltera-pill-list';
 
-    desc.innerHTML = "";
-    desc.appendChild(list);
-    desc.dataset.allteraPills = "1";
+      items.forEach(item => {
+        const pill = document.createElement('div');
+        pill.className = 'alltera-pill';
+        pill.textContent = item;
+        list.appendChild(pill);
+      });
 
-    return true;
+      // Важно: очищаем и вставляем
+      desc.innerHTML = '';
+      desc.appendChild(list);
+
+      tile.classList.add('alltera-split');
+    });
   }
 
-  function apply() {
-    injectCSS();
-    TARGET_TILE_IDS.forEach(renderPillsForTile);
+  // Дебаунс, чтобы не молотить на каждом DOM-изменении
+  let t = null;
+  function schedule() {
+    clearTimeout(t);
+    t = setTimeout(splitCoverDescriptionsToPills, 50);
   }
 
-  // 1) сразу пробуем
-  apply();
+  // Старт
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', splitCoverDescriptionsToPills);
+  } else {
+    splitCoverDescriptionsToPills();
+  }
 
-  // 2) несколько попыток (на случай поздней перерисовки Vue)
-  let tries = 0;
-  const t = setInterval(() => {
-    apply();
-    tries++;
-    if (tries > 60) clearInterval(t); // ~15 секунд
-  }, 250);
+  // На случай если Ecwid/InstantSite перерисовывает блоки после загрузки
+  const mo = new MutationObserver(schedule);
+  mo.observe(document.documentElement, { childList: true, subtree: true });
 
-  // 3) и наблюдаем за DOM, чтобы не "схлопывалось" обратно
-  const mo = new MutationObserver(() => apply());
-  mo.observe(document.body, { childList: true, subtree: true });
+  // И контрольный прогон через секунду
+  setTimeout(splitCoverDescriptionsToPills, 1000);
 })();
