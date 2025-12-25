@@ -1,1 +1,430 @@
-(function(){var BID="alltera-animated-bg",SID="alltera-bg-style",TSID="alltera-type-style",ASID="alltera-adv-style";function addStyle(id,css){if(document.getElementById(id))return;var s=document.createElement("style");s.id=id;s.textContent=css;document.head.appendChild(s)}function ensureBg(){if(document.getElementById(BID))return;var d=document.createElement("div");d.id=BID;d.setAttribute("aria-hidden","true");document.body.appendChild(d)}function norm(s){return(s||"").replace(/\uFEFF/g,"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim()}function bg(){addStyle(SID,"html,body{background:#bdbdbd!important}#"+BID+"{position:fixed;inset:0;z-index:2147483646;pointer-events:none;background:radial-gradient(900px 700px at 15% 20%,rgba(0,255,255,.95),transparent 60%),radial-gradient(900px 700px at 85% 25%,rgba(255,0,255,.9),transparent 60%),radial-gradient(900px 700px at 65% 80%,rgba(255,200,0,.85),transparent 60%),linear-gradient(120deg,rgba(30,30,30,1),rgba(240,240,240,1),rgba(80,80,80,1),rgba(230,230,230,1));background-size:260% 260%,260% 260%,260% 260%,500% 500%;animation:allteraShift 8s ease-in-out infinite;filter:saturate(0) contrast(2.3) brightness(1.05);opacity:1;mix-blend-mode:soft-light}@keyframes allteraShift{0%{background-position:0% 50%,100% 50%,50% 0%,0% 50%}50%{background-position:100% 50%,0% 50%,50% 100%,100% 50%}100%{background-position:0% 50%,100% 50%,50% 0%,0% 50%}}@media (max-width:768px){#"+BID+"{background-size:220% 220%,220% 220%,220% 220%,420% 420%;animation-duration:10s;filter:saturate(0) contrast(1.7) brightness(1.05)}}")}function typeCss(){addStyle(TSID,'.atw{display:inline-block}.atc:after{content:"|";display:inline-block;margin-left:2px;opacity:.9;animation:atb 1s steps(2,end) infinite}@keyframes atb{0%,49%{opacity:1}50%,100%{opacity:0}}')}function advCss(){addStyle(ASID,".atAdv{position:relative;display:block;border-radius:999px;padding:14px 18px 14px 44px;margin:12px 0;background:linear-gradient(135deg,#4b4b4b,#6a6a6a,#3f3f3f);background-size:240% 240%;animation:atSh 7s ease-in-out infinite;box-shadow:0 14px 34px rgba(0,0,0,.18);color:#fff;max-width:620px}.atAdv:before{content:'•';position:absolute;left:18px;top:12px;font-size:22px;line-height:1;opacity:.95}.atAdv .atw{min-height:1em}.atReveal{opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease}.atReveal.on{opacity:1;transform:none}@keyframes atSh{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}")}function closestTile(el){return el&&el.closest&&(el.closest(".ins-tile")||el.closest('[class*=\"ins-tile\"]')||document.body)}function findByText(root,txt){var q=root.querySelectorAll("h1,h2,h3,p,li,div,span");for(var i=0;i<q.length;i++){var t=norm(q[i].textContent);if(t===txt)return q[i]}return null}function typeInto(node,txt,speed,delay,done){if(!node||node.dataset.atTyped==="1")return;node.dataset.atTyped="1";node.classList.add("atc");node.textContent="";var i=0;setTimeout(function tick(){if(i<txt.length){node.textContent+=txt.charAt(i++);setTimeout(tick,speed)}else{node.classList.remove("atc");done&&done()}},delay)}function makeAdvEl(tag,txt){var e=document.createElement(tag||"div");e.className="atAdv atReveal";var sp=document.createElement("span");sp.className="atw";sp.dataset.atFull=txt;sp.textContent="";e.appendChild(sp);return e}function splitBullets(text){text=(text||"").replace(/\r/g,"");var parts=text.split("•").map(function(x){return norm(x)}).filter(Boolean);if(parts.length<=1){var one=norm(text.replace(/^\s*[•\-\–\—]\s*/,""));return one?[one]:[]}return parts}function rebuildBulletsInTile(tile){if(!tile||tile.dataset.atBul==="1")return;var nodes=[].slice.call(tile.querySelectorAll("p,li"));var changed=0;for(var i=0;i<nodes.length;i++){var el=nodes[i];if(!el||el.dataset.atKeep==="1")continue;var raw=(el.innerText||el.textContent||"");if(raw.indexOf("•")===-1)continue;var parts=splitBullets(raw);if(parts.length<1)continue;changed=1;var parent=el.parentNode;if(!parent)continue;var frag=document.createDocumentFragment();for(var k=0;k<parts.length;k++){var adv=(el.tagName==="LI")?makeAdvEl("li",parts[k]):makeAdvEl("div",parts[k]);frag.appendChild(adv)}parent.insertBefore(frag,el);parent.removeChild(el)}if(changed)tile.dataset.atBul="1"}function revealAll(root){var list=[].slice.call((root||document).querySelectorAll(".atReveal"));if("IntersectionObserver"in window){var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add("on");io.unobserve(x.target)}})},{threshold:.12});for(var i=0;i<list.length;i++)io.observe(list[i])}else{for(var j=0;j<list.length;j++)list[j].classList.add("on")}}function queueTypeInTile(tile,isWhy){if(!tile||tile.dataset.atQ==="1")return;var items=[];if(isWhy){var h=findByText(tile,"Почему мы?");var p=findByText(tile,"Мы выбираем устройства, которые реально упрощают жизнь — и дома, и после тренировок.");if(h){var ht=norm(h.textContent);h.textContent="";items.push({node:h,txt:ht,speed:85})}if(p){var pt=norm(p.textContent);p.textContent="";items.push({node:p,txt:pt,speed:55})}}var advSpans=[].slice.call(tile.querySelectorAll(".atAdv .atw"));for(var i=0;i<advSpans.length;i++){var sp=advSpans[i];if(!sp||sp.dataset.atDone==="1")continue;var txt=sp.dataset.atFull||"";items.push({node:sp,txt:txt,speed:52,adv:1})}if(!items.length){tile.dataset.atQ="1";return}tile.dataset.atQ="1";var idx=0;function next(){if(idx>=items.length)return;var it=items[idx++];if(!it||!it.node||!it.txt){next();return}if(it.adv){it.node.dataset.atDone="1";typeInto(it.node,it.txt,it.speed||55,120,function(){setTimeout(next,170)})}else{typeInto(it.node,it.txt,it.speed||55,140,function(){setTimeout(next,190)})}}next()}var parList=[];function initParallax(tile){if(!tile||tile.dataset.atPar==="1")return;var img=tile.querySelector("img");if(!img||img.dataset.atParEl==="1")return;try{var tr=getComputedStyle(img).transform;if(tr&&tr!=="none")return}catch(e){}img.dataset.atParEl="1";img.style.willChange="transform";parList.push({tile:tile,img:img});tile.dataset.atPar="1"}var raf=0;function parallaxTick(){raf=0;var vh=window.innerHeight||1;for(var i=0;i<parList.length;i++){var o=parList[i];if(!o||!o.tile||!o.img)continue;var r=o.tile.getBoundingClientRect();if(r.bottom<0||r.top>vh)continue;var p=(r.top+r.height/2 - vh/2)/vh;var y=Math.max(-10,Math.min(10,-p*10));o.img.style.transform="translate3d(0,"+y.toFixed(2)+"px,0)"}}function onScroll(){if(raf)return;raf=requestAnimationFrame(parallaxTick)}function run(){if(!document.body)return;bg();ensureBg();typeCss();advCss();var tiles=[].slice.call(document.querySelectorAll(".ins-tile,[class*='ins-tile']"));if(!tiles.length)tiles=[document.body];for(var i=0;i<tiles.length;i++){var tile=tiles[i];if(!tile)continue;var t=norm(tile.textContent);var isWhy=t.indexOf("Почему мы?")!==-1;var isHair=t.indexOf("Стейлеры для волос")!==-1;var isGun=t.indexOf("Массажные пистолеты")!==-1;if(isWhy||isHair||isGun){rebuildBulletsInTile(tile);revealAll(tile);queueTypeInTile(tile,isWhy);initParallax(tile)}}parallaxTick()}var started=0;function boot(){if(started)return;started=1;run();if("MutationObserver"in window){var tt;new MutationObserver(function(){clearTimeout(tt);tt=setTimeout(run,250)}).observe(document.body,{childList:true,subtree:true})}window.addEventListener("scroll",onScroll,{passive:true});window.addEventListener("resize",onScroll)}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot()})();
+(function () {
+  "use strict";
+
+  // ====== CONFIG ======
+  var BG_ID = "alltera-animated-bg";
+  var STYLE_ID = "alltera-style-v5";
+  var RUN_FLAG = "__ALLTERA_V5__";
+
+  // Заголовки страниц (у Ecwid InstantSite они обычно есть как H1/H2)
+  var PAGE_WHY = "Почему мы?";
+  var PAGE_STYLERS = "Стайлеры для волос";
+  var PAGE_GUNS = "Массажные пистолеты";
+
+  // ====== UTILS ======
+  function log() {
+    try { console.log.apply(console, ["[Alltera]"].concat([].slice.call(arguments))); } catch (e) {}
+  }
+
+  function addStyleOnce(id, css) {
+    if (document.getElementById(id)) return;
+    var s = document.createElement("style");
+    s.id = id;
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
+
+  function norm(t) {
+    return (t || "")
+      .replace(/\uFEFF/g, "")
+      .replace(/\u00A0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function safeClosest(el, sel) {
+    if (!el || !el.closest) return null;
+    try { return el.closest(sel); } catch (e) { return null; }
+  }
+
+  function isUI(el) {
+    return !!safeClosest(el, "a,button,input,textarea,select,script,style");
+  }
+
+  function getShownTile() {
+    // В InstantSite обычно активный экран помечен .ins-tile--shown
+    return document.querySelector(".ins-tile--shown") || document.body;
+  }
+
+  function getTileTitle(tile) {
+    if (!tile) return "";
+    var h = tile.querySelector("h1,h2,h3");
+    return norm(h ? h.textContent : "");
+  }
+
+  function ensureBG() {
+    if (document.getElementById(BG_ID)) return;
+    var d = document.createElement("div");
+    d.id = BG_ID;
+    d.setAttribute("aria-hidden", "true");
+    document.body.appendChild(d);
+  }
+
+  function cleanBulletText(t) {
+    // убираем ведущие "•" / "-" / "·"
+    return norm(String(t || "").replace(/^[\u2022•·\-\*]+\s*/g, ""));
+  }
+
+  function splitByBullets(t) {
+    // режем текст, если он “склеен” через • / ·
+    var raw = String(t || "");
+    if (raw.indexOf("•") === -1 && raw.indexOf("·") === -1) return null;
+
+    var parts = raw
+      .split(/(?:\s*[•·]\s*)+/g)
+      .map(function (x) { return norm(x); })
+      .filter(function (x) { return x && x.length > 2; });
+
+    return parts.length >= 2 ? parts : null;
+  }
+
+  function makeCard(text, variant) {
+    var d = document.createElement("div");
+    d.className = "at-card at-ghost at-reveal" + (variant ? (" " + variant) : "");
+    d.dataset.at = text;
+
+    var sp = document.createElement("span");
+    sp.className = "at-text";
+    d.appendChild(sp);
+    return d;
+  }
+
+  // ====== TYPEWRITER ======
+  function typeInto(el, text, speed, done) {
+    var target = el.classList.contains("at-card") ? el.querySelector(".at-text") : el;
+    if (!target) { if (done) done(); return; }
+
+    target.textContent = "";
+    var i = 0;
+
+    function tick() {
+      if (i < text.length) {
+        target.textContent += text.charAt(i++);
+        setTimeout(tick, speed);
+      } else {
+        if (done) done();
+      }
+    }
+    tick();
+  }
+
+  function typeSequence(items, speed, gap) {
+    var i = 0;
+    function next() {
+      if (i >= items.length) return;
+      var el = items[i++];
+      if (!el) return next();
+
+      var tx = norm(el.dataset.at || el.textContent || "");
+      if (!tx) return next();
+
+      // чтобы “текста изначально не было”, но место сохранялось:
+      el.dataset.at = tx;
+      el.classList.add("at-ghost"); // резерв места через :before
+      if (el.classList.contains("at-card")) {
+        var sp = el.querySelector(".at-text");
+        if (sp) sp.textContent = "";
+      } else {
+        el.textContent = "";
+      }
+
+      el.classList.add("at-typed", "at-on"); // покажем блок (fade-in)
+      typeInto(el, tx, speed, function () {
+        setTimeout(next, gap);
+      });
+    }
+    next();
+  }
+
+  // ====== REVEAL (fade/slide in) ======
+  function setupRevealObserver(root) {
+    if (!("IntersectionObserver" in window)) {
+      [].slice.call(root.querySelectorAll(".at-reveal")).forEach(function (e) { e.classList.add("at-on"); });
+      return;
+    }
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (x) {
+        if (x.isIntersecting) {
+          x.target.classList.add("at-on");
+          io.unobserve(x.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    [].slice.call(root.querySelectorAll(".at-reveal")).forEach(function (e) { io.observe(e); });
+  }
+
+  // ====== PARALLAX ======
+  var parallaxBound = false;
+  function setupParallax() {
+    if (parallaxBound) return;
+    parallaxBound = true;
+
+    var ticking = false;
+    function update() {
+      ticking = false;
+      var tile = getShownTile();
+      if (!tile) return;
+
+      // пытаемся взять “большую” картинку cover-блока, а не каталог
+      var imgs = [].slice.call(tile.querySelectorAll(
+        '[class*="ins-tile__image"] img, [class*="ins-tile__cover"] img, [class*="ins-tile__media"] img, img'
+      ));
+
+      // ограничим: берём только первые 2, чтобы не уехать в каталоге
+      imgs = imgs.slice(0, 2);
+
+      var y = window.scrollY || document.documentElement.scrollTop || 0;
+      var off = (y % 600) / 600; // 0..1
+      var py = (off * 12) - 6;   // -6..+6px
+
+      imgs.forEach(function (im) {
+        if (!im || !im.style) return;
+        im.classList.add("at-parallax");
+        im.style.setProperty("--atpy", py.toFixed(2) + "px");
+      });
+    }
+
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    update();
+  }
+
+  // ====== PAGE TRANSFORMS ======
+  function transformBulletsToCards(tile, variant) {
+    // 1) сначала режем “склеенные” тексты с • на несколько блоков
+    var candidates = [].slice.call(tile.querySelectorAll("p,li,div,span")).filter(function (el) {
+      if (!el || el.dataset.atDone === "1") return false;
+      if (isUI(el)) return false;
+      var t = norm(el.textContent);
+      if (!t) return false;
+      // если очень длинно — вероятно не то
+      if (t.length > 420) return false;
+      return (t.indexOf("•") !== -1 || t.indexOf("·") !== -1);
+    });
+
+    candidates.forEach(function (el) {
+      var t = el.textContent || "";
+      var parts = splitByBullets(t);
+      if (!parts) return;
+
+      // помечаем исходник
+      el.dataset.atDone = "1";
+
+      // делаем обёртку со списком карточек
+      var wrap = document.createElement("div");
+      wrap.className = "at-stack";
+
+      parts.forEach(function (p) {
+        var card = makeCard(cleanBulletText(p), variant);
+        wrap.appendChild(card);
+      });
+
+      el.parentNode.insertBefore(wrap, el);
+      el.parentNode.removeChild(el);
+    });
+
+    // 2) если буллеты уже отдельными li/p — просто стилизуем каждый как карточку
+    var singles = [].slice.call(tile.querySelectorAll("li,p")).filter(function (el) {
+      if (!el || el.dataset.atDone === "1") return false;
+      if (isUI(el)) return false;
+      var t = norm(el.textContent);
+      if (!t) return false;
+
+      // буллетом считаем: начинается с "•" или выглядит как преимущество (есть "—" / "Вт" / "об/мин")
+      var looks =
+        /^[\u2022•·]/.test(t) ||
+        t.indexOf(" — ") !== -1 ||
+        t.indexOf("Вт") !== -1 ||
+        t.indexOf("об/мин") !== -1;
+
+      return looks;
+    });
+
+    singles.forEach(function (el) {
+      var t = cleanBulletText(el.textContent);
+      if (!t) return;
+
+      el.dataset.atDone = "1";
+      el.dataset.at = t;
+      el.classList.add("at-card", "at-ghost", "at-reveal");
+      if (variant) el.classList.add(variant);
+
+      // убираем исходный текст, вставляем span для печати
+      el.textContent = "";
+      var sp = document.createElement("span");
+      sp.className = "at-text";
+      el.appendChild(sp);
+    });
+  }
+
+  function buildWhyPageTyping(tile) {
+    if (!tile || tile.dataset.atWhyRun === "1") return;
+
+    tile.dataset.atWhyRun = "1";
+    tile.classList.add("at-dark");
+
+    // Заголовок + подзаголовок
+    var h1 = tile.querySelector("h1,h2,h3");
+    if (h1) { h1.dataset.at = norm(h1.textContent); h1.textContent = ""; }
+
+    // Берём ближайший абзац после заголовка
+    var p = null;
+    if (h1) {
+      var next = h1.nextElementSibling;
+      while (next && !p) {
+        if (next.tagName === "P") p = next;
+        next = next.nextElementSibling;
+      }
+    }
+    if (p) { p.dataset.at = norm(p.textContent); p.textContent = ""; }
+
+    // Преимущества: делаем светлые блоки (на тёмном фоне — полупрозрачные)
+    transformBulletsToCards(tile, "at-on-dark");
+
+    setupRevealObserver(tile);
+
+    // Печатаем “один за одним”: заголовок → абзац → карточки
+    var seq = [];
+    if (h1 && h1.dataset.at) seq.push(h1);
+    if (p && p.dataset.at) seq.push(p);
+
+    var cards = [].slice.call(tile.querySelectorAll(".at-card")).filter(function (c) {
+      return c && c.dataset.at && c.dataset.at.length > 0;
+    });
+
+    // чтобы печаталось по порядку сверху вниз
+    seq = seq.concat(cards);
+
+    // старт небольшой задержкой (важно для InstantSite, он дорисовывает DOM)
+    setTimeout(function () {
+      typeSequence(seq, 26, 220);
+    }, 220);
+  }
+
+  function buildProductPage(tile) {
+    if (!tile) return;
+
+    var title = getTileTitle(tile);
+
+    // Для страниц 3/4 делаем: 1 преимущество = 1 блок, + печать
+    if (title === PAGE_STYLERS || title === PAGE_GUNS) {
+      tile.classList.remove("at-dark");
+
+      transformBulletsToCards(tile, "at-light");
+      setupRevealObserver(tile);
+
+      // Печать карточек по очереди
+      var cards = [].slice.call(tile.querySelectorAll(".at-card")).filter(function (c) {
+        return c && c.dataset.at && c.dataset.at.length > 0 && c.dataset.atTyped !== "1";
+      });
+
+      // отметим, чтобы не перезапускать бесконечно
+      cards.forEach(function (c) { c.dataset.atTyped = "1"; });
+
+      if (cards.length) {
+        setTimeout(function () {
+          typeSequence(cards, 24, 180);
+        }, 180);
+      }
+    }
+  }
+
+  // ====== CSS ======
+  function injectCSS() {
+    addStyleOnce(STYLE_ID, [
+      "html,body{background:#f2f2f2!important;}",
+
+      // Animated BG layer (как раньше)
+      "#" + BG_ID + "{position:fixed;inset:0;z-index:2147483646;pointer-events:none;",
+      "background:",
+      "radial-gradient(900px 700px at 15% 20%,rgba(0,255,255,.95),transparent 60%),",
+      "radial-gradient(900px 700px at 85% 25%,rgba(255,0,255,.9),transparent 60%),",
+      "radial-gradient(900px 700px at 65% 80%,rgba(255,200,0,.85),transparent 60%),",
+      "linear-gradient(120deg,rgba(30,30,30,1),rgba(240,240,240,1),rgba(80,80,80,1),rgba(230,230,230,1));",
+      "background-size:260% 260%,260% 260%,260% 260%,500% 500%;",
+      "animation:allteraShift 8s ease-in-out infinite;",
+      "filter:saturate(0) contrast(2.2) brightness(1.06);opacity:1;mix-blend-mode:soft-light;}",
+      "@keyframes allteraShift{0%{background-position:0% 50%,100% 50%,50% 0%,0% 50%}50%{background-position:100% 50%,0% 50%,50% 100%,100% 50%}100%{background-position:0% 50%,100% 50%,50% 0%,0% 50%}}",
+      "@media (max-width:768px){#" + BG_ID + "{background-size:220% 220%,220% 220%,220% 220%,420% 420%;animation-duration:10s;filter:saturate(0) contrast(1.7) brightness(1.05)}}",
+
+      // Cards layout
+      ".at-stack{display:flex;flex-direction:column;gap:14px;align-items:flex-start;}",
+      ".at-card{position:relative;border-radius:22px;padding:16px 18px;max-width:560px;",
+      "box-shadow:0 14px 28px rgba(0,0,0,.10);",
+      "line-height:1.45;font-size:16px;}",
+      ".at-light{background:#e7e7e7;color:#111;}",
+      ".at-on-dark{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(6px);}",
+      ".at-text{display:block;}",
+
+      // Reserve height, but show nothing initially
+      ".at-ghost::before{content:attr(data-at);visibility:hidden;display:block;white-space:normal;}",
+
+      // Reveal animation
+      ".at-reveal{opacity:0;transform:translateY(10px);transition:opacity .55s ease,transform .55s ease;}",
+      ".at-reveal.at-on{opacity:1;transform:none;}",
+
+      // Parallax (very light)
+      ".at-parallax{transform:translateY(var(--atpy, 0px));transition:transform .12s linear;will-change:transform;}",
+
+      // Fix bullets shifting (если где-то остались ul)
+      "ul{list-style:none!important;padding-left:0!important;margin-left:0!important;}",
+      "li::marker{content:'';}",
+
+      // Make why-page cards centered nicer (optional)
+      ".at-dark .at-stack{align-items:center;}",
+      ".at-dark .at-card{max-width:760px;width:min(760px, 92vw);text-align:center;}",
+    ].join(""));
+  }
+
+  // ====== MAIN APPLY LOOP ======
+  function apply() {
+    injectCSS();
+    ensureBG();
+    setupParallax();
+
+    var tile = getShownTile();
+    var title = getTileTitle(tile);
+
+    if (title === PAGE_WHY) {
+      buildWhyPageTyping(tile);
+    } else {
+      buildProductPage(tile);
+    }
+  }
+
+  function boot() {
+    if (window[RUN_FLAG]) return;
+    window[RUN_FLAG] = 1;
+
+    log("v5 boot");
+    apply();
+
+    // InstantSite может перерисовывать DOM без перезагрузки
+    var root = document.getElementById("ec-instantsite") || document.body;
+
+    if ("MutationObserver" in window) {
+      var t;
+      new MutationObserver(function () {
+        clearTimeout(t);
+        t = setTimeout(apply, 250);
+      }).observe(root, { childList: true, subtree: true });
+    }
+
+    // страховка
+    setInterval(apply, 1800);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
