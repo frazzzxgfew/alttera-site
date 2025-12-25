@@ -1,10 +1,9 @@
 (function(){
-var BID="alltera-animated-bg",SID="alltera-bg-style",UID="alltera-ui-style",PI=[],RAF=0;
+var SID="alltera-ui-style";
 function addStyle(id,css){if(document.getElementById(id))return;var s=document.createElement("style");s.id=id;s.textContent=css;document.head.appendChild(s)}
-function ensureBg(){if(document.getElementById(BID))return;var d=document.createElement("div");d.id=BID;d.setAttribute("aria-hidden","true");document.body.appendChild(d)}
 function norm(s){return(s||"").replace(/\uFEFF/g,"").replace(/\u00A0/g," ").replace(/\s+/g," ").trim()}
+function isUI(el){return el&&(el.closest&&el.closest("a,button,input,textarea,select,script,style"))}
 function tileOf(e){return e&&e.closest?e.closest('[class*="ins-tile"]'):null}
-function prepType(e){if(!e||e.dataset.atPrep==="1")return;var tx=norm(e.textContent);if(!tx)return;e.dataset.atText=tx;e.dataset.atPrep="1";e.textContent=""}
 function mkCard(text,center){
   var d=document.createElement("div");
   d.className="at-card"+(center?" at-center":"");
@@ -12,55 +11,7 @@ function mkCard(text,center){
   var sp=document.createElement("span");sp.className="at-t";d.appendChild(sp);
   return d
 }
-function isUI(el){return el&&(el.closest&&el.closest("a,button,input,textarea,select"))}
-function allCandidates(root){
-  return [].slice.call((root||document).querySelectorAll("h1,h2,h3,p,li,div,span,em,strong"))
-}
-function countBullets(t){var m=(t.match(/•/g)||[]);return m.length}
-function splitInlineBullets(el){
-  if(!el||el.dataset.atSplit==="1"||isUI(el))return null;
-  var tx=norm(el.textContent); if(countBullets(tx)<2)return null;
-  var parts=tx.split("•").map(function(x){return norm(x)}).filter(Boolean);
-  if(parts.length<2)return null;
-  var center=0; try{center=(getComputedStyle(el).textAlign==="center")?1:0}catch(e){}
-  var wrap=document.createElement("div");wrap.className="at-wrap"+(center?" at-center":"");wrap.dataset.atSplit="1";
-  for(var i=0;i<parts.length;i++)wrap.appendChild(mkCard(parts[i],center));
-  el.parentNode&&el.parentNode.replaceChild(wrap,el);
-  return wrap
-}
-function wrapLineBullet(el){
-  if(!el||el.dataset.atLine==="1"||isUI(el))return null;
-  var tx=norm(el.textContent); if(tx.indexOf("•")!==0)return null;
-  var clean=norm(tx.replace(/^•\s*/,""));
-  if(!clean)return null;
-  var center=0; try{center=(getComputedStyle(el).textAlign==="center")?1:0}catch(e){}
-  var c=mkCard(clean,center);
-  c.dataset.atFrom="line";
-  el.dataset.atLine="1";
-  el.parentNode&&el.parentNode.replaceChild(c,el);
-  return c
-}
-function convertBullets(tile){
-  if(!tile)return;
-  var els=allCandidates(tile);
-
-  // 1) сначала режем “склеенные” буллеты (• внутри одного текста)
-  for(var i=0;i<els.length;i++){
-    var e=els[i];
-    if(!e||e.classList&&e.classList.contains("at-card"))continue;
-    var tx=e.textContent||"";
-    if(countBullets(tx)>=2)splitInlineBullets(e);
-  }
-
-  // 2) потом каждую строку, начинающуюся с •, делаем отдельной карточкой
-  els=allCandidates(tile);
-  for(var j=0;j<els.length;j++){
-    var e2=els[j];
-    if(!e2||e2.classList&&e2.classList.contains("at-card"))continue;
-    var t2=norm(e2.textContent);
-    if(t2.indexOf("•")===0)wrapLineBullet(e2);
-  }
-}
+function prepType(e){if(!e||e.dataset.atPrep==="1")return;var tx=norm(e.textContent);if(!tx)return;e.dataset.atText=tx;e.dataset.atPrep="1";e.textContent=""}
 function typeSeq(list,speed,delay,gap){
   var i=0;
   function next(){
@@ -80,7 +31,6 @@ function typeSeq(list,speed,delay,gap){
   next();
 }
 function whenVisible(el,cb){
-  if(!el||!cb)return;
   try{
     if("IntersectionObserver"in window){
       var io=new IntersectionObserver(function(es){
@@ -91,116 +41,91 @@ function whenVisible(el,cb){
   }catch(e){}
   cb();
 }
-function clamp(v,a,b){return v<a?a:v>b?b:v}
-function addParallax(tile){
-  if(!tile||tile.dataset.atPar==="1")return;
-  tile.dataset.atPar="1";
-  var img=tile.querySelector("img"); if(!img)return;
-  img.classList.add("at-par"); PI.push(img);
-  if(RAF)return;
-  RAF=1;
-  window.addEventListener("scroll",parTick,{passive:true});
-  window.addEventListener("resize",parTick);
-  parTick();
+function convertTextNodes(tile){
+  if(!tile)return;
+  var tw=document.createTreeWalker(tile,NodeFilter.SHOW_TEXT,{acceptNode:function(n){
+    if(!n||!n.nodeValue)return NodeFilter.FILTER_REJECT;
+    if(n.nodeValue.indexOf("•")===-1)return NodeFilter.FILTER_REJECT;
+    var p=n.parentElement; if(!p||isUI(p))return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT;
+  }});
+  var arr=[],n; while((n=tw.nextNode()))arr.push(tw.currentNode);
+  for(var i=0;i<arr.length;i++){
+    var tn=arr[i],p=tn.parentElement; if(!p)continue;
+    var raw=norm(tn.nodeValue);
+    if(raw.indexOf("•")===-1)continue;
+    var parts=raw.split("•").map(norm).filter(Boolean);
+    if(!parts.length)continue;
+    var center=0; try{center=(getComputedStyle(p).textAlign==="center")?1:0}catch(e){}
+    var wrap=document.createElement("div");
+    wrap.className="at-wrap"+(center?" at-center":"");
+    for(var k=0;k<parts.length;k++)wrap.appendChild(mkCard(parts[k],center));
+    p.insertBefore(wrap,tn);
+    p.removeChild(tn);
+  }
 }
-function parTick(){
-  requestAnimationFrame(function(){
-    var vh=window.innerHeight||800;
-    for(var i=0;i<PI.length;i++){
-      var im=PI[i]; if(!im||!im.getBoundingClientRect)continue;
-      var r=im.getBoundingClientRect();
-      var p=(r.top+r.height*.5-vh*.5)/vh;
-      var y=clamp(p*14,-12,12);
-      im.style.transform="translate3d(0,"+y+"px,0)";
+function convertTaggedBullets(tile){
+  if(!tile)return;
+  var els=[].slice.call(tile.querySelectorAll("p,li,div,span"));
+  for(var i=0;i<els.length;i++){
+    var e=els[i]; if(!e||e.classList.contains("at-card")||isUI(e))continue;
+    var t=norm(e.textContent);
+    if(t.indexOf("•")===0){
+      var c=mkCard(norm(t.replace(/^•\s*/,"")),0);
+      e.parentNode&&e.parentNode.replaceChild(c,e);
     }
-  });
-}
-function findHeadingByTextContains(arr){
-  var hs=[].slice.call(document.querySelectorAll("h1,h2,h3"));
-  for(var i=0;i<hs.length;i++){
-    var t=norm(hs[i].textContent);
-    for(var k=0;k<arr.length;k++) if(t.indexOf(arr[k])!==-1) return hs[i];
-  }
-  return null;
-}
-function buildAndRunForTile(tile,head,desc,speed){
-  if(!tile||!head)return;
-  convertBullets(tile);
-  var cards=[].slice.call(tile.querySelectorAll(".at-card"));
-  prepType(head);
-  if(desc&&tileOf(desc)===tile)prepType(desc);
-  for(var i=0;i<cards.length;i++){ if(cards[i]&&cards[i].dataset.atPrep!=="1"){ cards[i].dataset.atPrep="1"; } }
-  var seq=[head];
-  if(desc&&tileOf(desc)===tile)seq.push(desc);
-  for(var j=0;j<cards.length;j++)seq.push(cards[j]);
-  whenVisible(tile,function(){typeSeq(seq,speed,220,220)});
-}
-function scan(){
-  // Почему мы?
-  var why=findHeadingByTextContains(["Почему мы?"]);
-  if(why){
-    var t=tileOf(why);
-    var d=null;
-    var ps=[].slice.call(t.querySelectorAll("p,div,span"));
-    for(var i=0;i<ps.length;i++){
-      var tx=norm(ps[i].textContent);
-      if(tx.indexOf("Мы выбираем устройства")===0){d=ps[i];break}
-    }
-    addParallax(t);
-    buildAndRunForTile(t,why,d,70);
-  }
-
-  // Стайлеры/Фены (на всякий случай ловим оба варианта)
-  var hair=findHeadingByTextContains(["Стайлеры","Фены","Фен"]);
-  if(hair){
-    var th=tileOf(hair);
-    addParallax(th);
-    buildAndRunForTile(th,hair,null,52);
-  }
-
-  // Массажные пистолеты
-  var gun=findHeadingByTextContains(["Массажные пистолеты","пистолеты"]);
-  if(gun){
-    var tg=tileOf(gun);
-    addParallax(tg);
-    buildAndRunForTile(tg,gun,null,52);
   }
 }
-function start(){
+function run(){
   addStyle(SID,
-    "html,body{background:#bdbdbd!important}#"+BID+
-    "{position:fixed;inset:0;z-index:2147483646;pointer-events:none;"+
-    "background:radial-gradient(900px 700px at 15% 20%,rgba(0,255,255,.95),transparent 60%),"+
-    "radial-gradient(900px 700px at 85% 25%,rgba(255,0,255,.9),transparent 60%),"+
-    "radial-gradient(900px 700px at 65% 80%,rgba(255,200,0,.85),transparent 60%),"+
-    "linear-gradient(120deg,rgba(30,30,30,1),rgba(240,240,240,1),rgba(80,80,80,1),rgba(230,230,230,1));"+
-    "background-size:260% 260%,260% 260%,260% 260%,500% 500%;"+
-    "animation:allteraShift 8s ease-in-out infinite;filter:saturate(0) contrast(2.3) brightness(1.05);opacity:1;mix-blend-mode:soft-light}"+
-    "@keyframes allteraShift{0%{background-position:0% 50%,100% 50%,50% 0%,0% 50%}50%{background-position:100% 50%,0% 50%,50% 100%,100% 50%}100%{background-position:0% 50%,100% 50%,50% 0%,0% 50%}}"+
-    "@media (max-width:768px){#"+BID+"{background-size:220% 220%,220% 220%,220% 220%,420% 420%;animation-duration:10s;filter:saturate(0) contrast(1.7) brightness(1.05)}}"
-  );
-  addStyle(UID,
     ".at-wrap{margin:0;padding:0}.at-center{text-align:center}"+
     ".at-card{position:relative;border-radius:999px;padding:14px 18px 14px 42px;margin:12px 0;max-width:760px;"+
     "background:linear-gradient(120deg,#efefef,#cfcfcf,#f6f6f6,#bdbdbd);background-size:320% 320%;animation:atshine 7s ease-in-out infinite;"+
     "box-shadow:0 12px 28px rgba(0,0,0,.12);color:#111;opacity:0;transform:translateY(12px);"+
-    "transition:opacity .55s ease,transform .55s ease;will-change:transform,opacity}"+
+    "transition:opacity .55s ease,transform .55s ease}"+
     ".at-center.at-card,.at-center .at-card{margin:12px auto}"+
     ".at-card:before{content:'•';position:absolute;left:18px;top:12px;font-size:22px;line-height:1;opacity:.75}"+
     ".at-card.at-on{opacity:1;transform:none}"+
     ".at-cur:after{content:'|';display:inline-block;margin-left:2px;opacity:.85;animation:atblink 1s steps(2,end) infinite}"+
-    ".at-par{will-change:transform;transform:translate3d(0,0,0)}"+
     "@keyframes atblink{0%,49%{opacity:1}50%,100%{opacity:0}}"+
     "@keyframes atshine{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}"
   );
-  ensureBg();
-  scan();
-  if("MutationObserver"in window){
-    var t=0;
-    new MutationObserver(function(){clearTimeout(t);t=setTimeout(scan,200)})
-      .observe(document.body,{childList:true,subtree:true});
+
+  // “Почему мы?”
+  var why=[].slice.call(document.querySelectorAll("h1,h2,h3")).find(function(h){return norm(h.textContent).indexOf("Почему мы?")!==-1});
+  if(why){
+    var t=tileOf(why);
+    convertTextNodes(t); convertTaggedBullets(t);
+    var cards=[].slice.call(t.querySelectorAll(".at-card"));
+    prepType(why);
+    var seq=[why].concat(cards);
+    whenVisible(t,function(){typeSeq(seq,70,220,220)});
   }
-  setInterval(scan,1200);
+
+  // Стайлеры/Фены
+  var hair=[].slice.call(document.querySelectorAll("h1,h2,h3")).find(function(h){
+    var x=norm(h.textContent);return x.indexOf("Стайлеры")!==-1||x.indexOf("Фены")!==-1||x==="Фен";
+  });
+  if(hair){
+    var th=tileOf(hair);
+    convertTextNodes(th); convertTaggedBullets(th);
+    var ch=[].slice.call(th.querySelectorAll(".at-card"));
+    prepType(hair);
+    whenVisible(th,function(){typeSeq([hair].concat(ch),52,200,180)});
+  }
+
+  // Массажные пистолеты
+  var gun=[].slice.call(document.querySelectorAll("h1,h2,h3")).find(function(h){return norm(h.textContent).indexOf("Массажные пистолеты")!==-1});
+  if(gun){
+    var tg=tileOf(gun);
+    convertTextNodes(tg); convertTaggedBullets(tg);
+    var cg=[].slice.call(tg.querySelectorAll(".at-card"));
+    prepType(gun);
+    whenVisible(tg,function(){typeSeq([gun].concat(cg),52,200,180)});
+  }
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start);else start();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",run);else run();
+if("MutationObserver"in window){
+  var t=0;new MutationObserver(function(){clearTimeout(t);t=setTimeout(run,200)}).observe(document.body,{childList:true,subtree:true});
+}
 })();
