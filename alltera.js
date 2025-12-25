@@ -1,112 +1,122 @@
 (() => {
-  const STYLE_ID = 'alltera-bullets-style-v1';
-
-  const esc = (s) =>
-    s.replace(/&/g, '&amp;')
-     .replace(/</g, '&lt;')
-     .replace(/>/g, '&gt;')
-     .replace(/"/g, '&quot;')
-     .replace(/'/g, '&#039;');
+  const STYLE_ID = 'alltera-pills-style-v2';
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) return;
     const st = document.createElement('style');
     st.id = STYLE_ID;
     st.textContent = `
-      .alltera-bullets{display:flex;flex-direction:column;gap:16px}
-      .alltera-bullet{
-        display:flex;gap:10px;align-items:flex-start;
-        padding:18px 22px;border-radius:999px;
+      /* убираем “старую” плашку-овал, если она стилится через p */
+      #tile-cover-KWEVvb .ins-tile__description p,
+      #tile-cover-BXq5Sx .ins-tile__description p {
+        background: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+
+      .alltera-pilllist{
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+      }
+
+      /* стиль “как Почему мы?” — широкие капсулы */
+      .alltera-pill{
+        display:flex;
+        align-items:flex-start;
+        gap:12px;
+        padding:18px 22px;
+        border-radius:999px;
         background: rgba(33,36,39,.82);
         color:#fff;
         box-shadow: 0 12px 30px rgba(0,0,0,.18);
         max-width: 760px;
       }
-      .alltera-bullet-dot{flex:0 0 auto;opacity:.9}
-      .alltera-bullet-text{line-height:1.35}
-      /* Чтобы на FULLSCREEN (Почему мы?) было по центру */
-      .ins-tile--fullscreen-center .alltera-bullets{align-items:center}
+
+      .alltera-pill-dot{flex:0 0 auto; opacity:.9}
+      .alltera-pill-text{line-height:1.35}
+
+      /* центрирование как на “Почему мы?” */
+      #tile-cover-KWEVvb .alltera-pilllist,
+      #tile-cover-BXq5Sx .alltera-pilllist{
+        align-items:flex-start; /* можно поставить center, если хочешь по центру */
+      }
     `;
     document.head.appendChild(st);
   }
 
-  function extractBulletsFromText(text) {
-    const raw = (text || '')
-      .replace(/\r/g, '\n')
+  function escapeHtml(s) {
+    return (s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // главное: режем по "•" / "·" и ПЕРВЫЙ кусок тоже считаем пунктом
+  function parseItems(text) {
+    const t = (text || '')
       .replace(/\u00A0/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
 
-    if (!raw) return [];
+    if (!t) return [];
 
-    // Сначала режем по строкам
-    let lines = raw
-      .split(/\n+/)
+    // режем по маркеру в середине строки тоже
+    const parts = t
+      .split(/[•·]/g)
       .map(s => s.trim())
       .filter(Boolean);
 
-    // Если всё в одной строке, но много "•" — режем по "•"
-    if (lines.length === 1) {
-      const parts = lines[0].split('•').map(s => s.trim()).filter(Boolean);
-      if (parts.length >= 2) lines = parts.map(s => '• ' + s);
-    }
-
-    // Берём только буллеты (если есть)
-    const bullets = lines.filter(l => /^•\s*/.test(l));
-    return bullets.length ? bullets : [];
+    return parts;
   }
 
-  function splitOneDescription(desc) {
-    if (!desc || desc.dataset.allteraBulletsDone === '1') return false;
+  function renderPills(descEl) {
+    if (!descEl) return false;
+    if (descEl.querySelector('.alltera-pilllist')) return true;
 
-    // 1) если уже есть несколько <p>, берём их текст
-    const ps = Array.from(desc.querySelectorAll(':scope > p'));
-    let bullets = [];
-
-    if (ps.length > 1) {
-      bullets = ps.map(p => p.innerText.trim()).filter(Boolean).filter(t => /^•\s*/.test(t));
-    }
-
-    // 2) если буллетов нет — пробуем вытащить из общего текста (случай “в одном <p>”)
-    if (bullets.length < 2) {
-      bullets = extractBulletsFromText(desc.innerText);
-    }
-
-    if (bullets.length < 2) return false;
+    const items = parseItems(descEl.innerText);
+    if (items.length < 2) return false; // если только один пункт — не трогаем
 
     ensureStyle();
 
-    // Пересобираем контент
-    desc.innerHTML = '';
     const wrap = document.createElement('div');
-    wrap.className = 'alltera-bullets';
+    wrap.className = 'alltera-pilllist';
 
-    bullets.forEach(b => {
-      const clean = b.replace(/^•\s*/, '').trim();
-      const item = document.createElement('div');
-      item.className = 'alltera-bullet';
-      item.innerHTML = `<span class="alltera-bullet-dot">•</span><span class="alltera-bullet-text">${esc(clean)}</span>`;
-      wrap.appendChild(item);
+    items.forEach(item => {
+      const pill = document.createElement('div');
+      pill.className = 'alltera-pill';
+      pill.innerHTML = `
+        <span class="alltera-pill-dot">•</span>
+        <span class="alltera-pill-text">${escapeHtml(item)}</span>
+      `;
+      wrap.appendChild(pill);
     });
 
-    desc.appendChild(wrap);
-    desc.dataset.allteraBulletsDone = '1';
+    descEl.innerHTML = '';
+    descEl.appendChild(wrap);
     return true;
   }
 
   function run() {
-    document
-      .querySelectorAll('.ins-tile--cover .ins-tile__description.ins-tile__format')
-      .forEach(splitOneDescription);
+    // именно два нужных блока
+    const ids = ['tile-cover-KWEVvb', 'tile-cover-BXq5Sx'];
+    ids.forEach(id => {
+      const desc = document.querySelector(`#${id} .ins-tile__description.ins-tile__format`);
+      renderPills(desc);
+    });
   }
 
-  // старт
+  // старт + догрузки
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', run);
   } else {
     run();
   }
 
-  // сайт догружает блоки — держим observer
-  const mo = new MutationObserver(() => run());
+  const mo = new MutationObserver(run);
   mo.observe(document.body, { childList: true, subtree: true });
 })();
