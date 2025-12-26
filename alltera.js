@@ -6,7 +6,7 @@
 
   // ====== НАСТРОЙКИ ПЕЧАТИ ======
   const TYPE_SPEED = 55;
-  const TYPE_DELAY = 250;
+  const TYPE_DELAY = 55;
   const SHOW_CURSOR = true;
 
   // Фразы, которые должны печататься (как у тебя было)
