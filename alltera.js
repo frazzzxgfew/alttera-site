@@ -1,3 +1,4 @@
+<script>
 (function () {
   var VERSION = "alltera-combo-2025-12-26-v2";
 
@@ -401,3 +402,4 @@
     start();
   }
 })();
+</script>
